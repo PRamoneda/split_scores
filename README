@@ -1,0 +1,14 @@
+## Iterative algorithm
+
+
+
+For a piece with X measures in MusixCML, the algorithm splits the piece into multiple 3-page sections (in PDF):
+    0. Remove all the new-system and new-page breaks from the original musicxml.
+
+    1. First Page of Each Section: The algorithm starts by adding a single empty measure with a line break, making the first page of each section mostly blank.
+
+    2. Second Page of Each Section: The algorithm then adds as many original measures from the piece as possible to the second page, surrounded by line breaks. It iteratively adjusts the number of measures to ensure that the middle page of the section fits perfectly within one page.
+
+    3. Third Page of Each Section: After filling the second page with content, the algorithm adds another single empty measure with a line break, creating a third blank page for each section.
+
+This process repeats until all X measures from the original piece are split into multiple 3-page sections, each containing a middle page filled with content and the first and third pages mostly blank with line breaks.
