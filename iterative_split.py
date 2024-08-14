@@ -4,6 +4,9 @@ import os
 from PyPDF2 import PdfReader, PdfWriter
 import xml.dom.minidom as minidom
 
+from common import find_and_add_last_attributes, copy_metadata_sections, add_final_barline, copy_metadata_sections_all
+
+
 def write_pretty_xml(element, file_path):
     """
     Writes an ElementTree to an XML file with pretty printing and correct indentation.
@@ -78,12 +81,13 @@ def split_musicxml_by_page(file_path, output_dir='split_musicxml'):
             low = 0
             high = total_measures - measure_index
             best_fit = 0
-            first_page = False
-
+            first_measure = current_measures[measure_index:measure_index+1]
+            add_new_page_break(first_measure[0])
+            find_and_add_last_attributes(first_measure[0], current_measures[:measure_index])
             while low <= high:
                 mid = (low + high) // 2
-                measures_for_second_page = current_measures[measure_index:measure_index + mid]
-                add_new_page_break(measures_for_second_page[0])
+                measures_for_second_page = first_measure + current_measures[measure_index+1:measure_index + mid]
+
                 # Create a temporary MusicXML structure to test the layout
                 temp_root = ET.Element(root.tag, root.attrib)
                 copy_metadata_sections(root, temp_root)
@@ -125,28 +129,63 @@ def split_musicxml_by_page(file_path, output_dir='split_musicxml'):
 
             # Save the section to an output file
             if best_fit > 0:
-                measures_for_second_page = current_measures[measure_index - best_fit:measure_index]
-
-                temp_root = ET.Element(root.tag, root.attrib)
-                copy_metadata_sections(root, temp_root)
-
-                temp_part = ET.SubElement(temp_root, 'part', {'id': part_id})
-                temp_part.append(empty_measure)
-                temp_part.extend(measures_for_second_page)
-
-                last_measure = create_empty_measure()
-                add_new_page_break(last_measure)
-                temp_part.append(last_measure)
-
-                final_file_path = os.path.join(output_dir, f"section_{page_number}_part_{part_id}.xml")
-                write_pretty_xml(temp_root, final_file_path)
-
-                final_pdf_path = final_file_path.replace('.xml', '.pdf')
-                os.system(f"mscore3 {final_file_path} -o {final_pdf_path}")
+                save_my_musicxml(part_id, page_number, current_measures, measure_index, best_fit, output_dir, root, empty_measure, total_measures)
 
             page_number += 1
 
     return page_number
+
+
+def save_my_musicxml(part_id, page_number, current_measures, measure_index, best_fit, output_dir, root, empty_measure, total_measures):
+
+    measures_for_second_page = current_measures[measure_index - best_fit:measure_index]
+
+    temp_root = ET.Element(root.tag, root.attrib)
+
+    copy_metadata_sections(root, temp_root)
+
+    temp_part = ET.SubElement(temp_root, 'part', {'id': part_id})
+    temp_part.append(empty_measure)
+    temp_part.extend(measures_for_second_page)
+
+    # check if is the last page
+    if measure_index == total_measures:
+        add_final_barline(measures_for_second_page[-1])
+        is_last = True
+    else:
+        is_last = False
+        last_measure = create_empty_measure()
+        add_new_page_break(last_measure)
+        temp_part.append(last_measure)
+
+    final_file_path = os.path.join(output_dir, f"section_{page_number}_part_{part_id}_tmp3.xml")
+    write_pretty_xml(temp_root, final_file_path)
+
+    final_pdf_path = final_file_path.replace('.xml', '.pdf')
+    os.system(f"mscore3 {final_file_path} -o {final_pdf_path}")
+
+    # Check the PDF page count
+    if check_pdf_page_count(final_pdf_path) == 3 or (check_pdf_page_count(final_pdf_path) == 2 and (is_last)):
+        print(f"PDF page count is 3 for {final_pdf_path}")
+        # remove first measure and last measure
+        temp_part.remove(empty_measure)
+        if not is_last:
+            temp_part.remove(last_measure)
+        write_pretty_xml(temp_root, final_file_path.replace('_tmp3.xml', '.xml'))
+        # TODO save audio because it is slow...and i can do it in parallel with musecore -J
+        # save final PDF
+        pdf_reader = PdfReader(final_pdf_path)
+        final_pdf_path = final_pdf_path.replace('_tmp3.pdf', '.pdf')
+        # If the exception handling is desired instead of just raising an exception:
+        # Remove the first and last pages to create a new PDF
+        pdf_writer = PdfWriter()
+        index_content = 1
+        pdf_writer.add_page(pdf_reader.pages[index_content])
+        # Write the new PDF file with the same name, replacing the original
+        with open(final_pdf_path, 'wb') as new_pdf_file:
+            pdf_writer.write(new_pdf_file)
+    elif not is_last:
+        raise ValueError(f"PDF page count is not 3 for {final_pdf_path}")
 
 
 def create_empty_measure():
@@ -167,12 +206,6 @@ def add_new_page_break(measure):
     """Adds a new page break to the given measure."""
     print_element = ET.Element('print', {'new-page': 'yes'})
     measure.append(print_element)
-
-def copy_metadata_sections(source_root, target_root):
-    """Copies the metadata sections from source_root to target_root."""
-    for child in source_root:
-        if child.tag in ['defaults', 'part-list']:
-            target_root.append(child)
 
 def check_pdf_page_count(pdf_file_path):
     """Check the number of pages in a PDF."""

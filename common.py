@@ -181,6 +181,37 @@ def add_divisions(measure, last_divisions):
             attributes.insert(0, last_divisions)
 
 
+def add_final_barline(measure):
+    """
+    Adds a final barline to the given measure for all staves.
+    """
+    # Find the number of staves in the measure (if present)
+    staves = measure.findall('.//staff')
+
+    # If there are no staff elements, assume there's only one staff
+    num_staves = len(staves) if staves else 1
+
+    for staff_number in range(1, num_staves + 1):
+        # Create or find the barline element for each staff
+        barline = measure.find(f'.//barline[@staff="{staff_number}"]')
+        if barline is None:
+            barline = ET.Element('barline')
+            barline.set('staff', str(staff_number))
+            measure.append(barline)
+
+        # Set the barline's location to 'right' and type to 'final'
+        barline.set('location', 'right')
+
+        # Find or create the 'bar-style' element within the barline
+        bar_style = barline.find('bar-style')
+        if bar_style is None:
+            bar_style = ET.Element('bar-style')
+            barline.append(bar_style)
+
+        # Set the bar-style to 'light-heavy' (typically used for final barlines)
+        bar_style.text = 'light-heavy'
+
+
 
 def copy_metadata_sections(source_root, target_root):
     """
@@ -189,3 +220,29 @@ def copy_metadata_sections(source_root, target_root):
     for child in source_root:
         if child.tag in [ 'defaults', 'part-list']: #, 'credit' 'identification',
             target_root.append(child)
+
+def copy_metadata_sections_all(source_root, target_root):
+    """
+    Copies the metadata sections from source_root to target_root.
+    """
+    for child in source_root:
+        if child.tag in [ 'defaults', 'part-list', 'credit' 'identification',]: #, 'credit' 'identification',
+            target_root.append(child)
+
+
+def find_and_add_last_attributes(current_measure, previous_measures):
+    """
+    Finds the last attributes in the previous measures and adds them to the current measure.
+    """
+    last_tempo, last_dynamic = find_last_tempo_and_dynamics(previous_measures)
+    last_key = find_last_key(previous_measures)
+    last_time = find_last_time(previous_measures)
+    last_clef = find_last_clef(previous_measures)
+    last_divisions = find_last_divisions(previous_measures)
+
+    add_divisions(current_measure, last_divisions)
+    add_tempo_and_dynamics(current_measure, last_tempo, last_dynamic)
+    add_key_signature(current_measure, last_key)
+    add_time_signature(current_measure, last_time)
+    add_clef(current_measure, last_clef)
+    return last_tempo, last_dynamic, last_key, last_time, last_clef, last_divisions
