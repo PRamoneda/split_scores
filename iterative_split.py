@@ -22,9 +22,13 @@ def write_pretty_xml(element, file_path):
     dom = minidom.parseString(xml_string)
     pretty_xml_as_string = dom.toprettyxml(indent="  ")
 
-    # Write the pretty-printed XML to a file
+    # Remove unnecessary empty lines
+    lines = [line for line in pretty_xml_as_string.splitlines() if line.strip()]
+    cleaned_pretty_xml = "\n".join(lines)
+
+    # Write the cleaned pretty-printed XML to a file
     with open(file_path, 'w', encoding='UTF-8') as f:
-        f.write(pretty_xml_as_string)
+        f.write(cleaned_pretty_xml)
 
 
 # Recursive function to print elements
