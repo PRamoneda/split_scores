@@ -2,7 +2,7 @@
 
 
 
-For a piece with X measures in MusixCML, the algorithm splits the piece into multiple 3-page sections (in PDF):
+For a piece with X measures in MusicCML, the algorithm splits the piece into multiple 3-page sections (in PDF):
     0. Remove all the new-system and new-page breaks from the original musicxml.
 
     1. First Page of Each Section: The algorithm starts by adding a single empty measure with a line break, making the first page of each section mostly blank.

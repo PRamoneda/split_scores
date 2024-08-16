@@ -115,26 +115,27 @@ def add_time_signature(measure, last_time):
             attributes.append(last_time)
 
 
-def find_last_clef(measures):
+def find_last_clef(measures, clef_number):
     """
-    Finds the last clef in the given measures.
+    Finds the last clef in the given measures with a specific clef number.
     """
     last_clef = None
 
     for measure in measures:
         attributes = measure.find('attributes')
         if attributes is not None:
-            clef = attributes.find('clef')
-            if clef is not None:
-                last_clef = clef
-                print(f"Clef found in measure {measure.get('number')}: {ET.tostring(clef)}")
+            clefs = attributes.findall('clef')
+            for clef in clefs:
+                if clef.get('number') == str(clef_number):
+                    last_clef = clef
+                    print(f"Clef {clef_number} found in measure {measure.get('number')}: {ET.tostring(clef)}")
 
     return last_clef
 
 
 def add_clef(measure, last_clef):
     """
-    Adds the last known clef to the beginning of the given measure.
+    Adds the last known clef with the specified number to the beginning of the given measure.
     """
     if last_clef is not None:
         attributes = measure.find('attributes')
@@ -142,8 +143,15 @@ def add_clef(measure, last_clef):
             attributes = ET.Element('attributes')
             measure.insert(0, attributes)
 
-        # if there is not clef Add the last known clef
-        existing_clef = attributes.find('clef')
+        # Check if the clef with the same number already exists
+        existing_clef = None
+        clefs = attributes.findall('clef')
+        for clef in clefs:
+            if clef.get('number') == last_clef.get('number'):
+                existing_clef = clef
+                break
+
+        # If the clef does not exist, add the last known clef
         if existing_clef is None:
             attributes.append(last_clef)
 
@@ -183,33 +191,10 @@ def add_divisions(measure, last_divisions):
 
 def add_final_barline(measure):
     """
-    Adds a final barline to the given measure for all staves.
+    Adds a final barline to the given meaºsure for all staves.
     """
-    # Find the number of staves in the measure (if present)
-    staves = measure.findall('.//staff')
+    pass
 
-    # If there are no staff elements, assume there's only one staff
-    num_staves = len(staves) if staves else 1
-
-    for staff_number in range(1, num_staves + 1):
-        # Create or find the barline element for each staff
-        barline = measure.find(f'.//barline[@staff="{staff_number}"]')
-        if barline is None:
-            barline = ET.Element('barline')
-            barline.set('staff', str(staff_number))
-            measure.append(barline)
-
-        # Set the barline's location to 'right' and type to 'final'
-        barline.set('location', 'right')
-
-        # Find or create the 'bar-style' element within the barline
-        bar_style = barline.find('bar-style')
-        if bar_style is None:
-            bar_style = ET.Element('bar-style')
-            barline.append(bar_style)
-
-        # Set the bar-style to 'light-heavy' (typically used for final barlines)
-        bar_style.text = 'light-heavy'
 
 
 
@@ -237,12 +222,14 @@ def find_and_add_last_attributes(current_measure, previous_measures):
     last_tempo, last_dynamic = find_last_tempo_and_dynamics(previous_measures)
     last_key = find_last_key(previous_measures)
     last_time = find_last_time(previous_measures)
-    last_clef = find_last_clef(previous_measures)
+    last_clef_right = find_last_clef(previous_measures, 1)
+    last_clef_left = find_last_clef(previous_measures, 2)
     last_divisions = find_last_divisions(previous_measures)
 
     add_divisions(current_measure, last_divisions)
     add_tempo_and_dynamics(current_measure, last_tempo, last_dynamic)
     add_key_signature(current_measure, last_key)
     add_time_signature(current_measure, last_time)
-    add_clef(current_measure, last_clef)
-    return last_tempo, last_dynamic, last_key, last_time, last_clef, last_divisions
+    add_clef(current_measure, last_clef_right)
+    add_clef(current_measure, last_clef_left)
+    return last_tempo, last_dynamic, last_key, last_time, last_clef_right, last_clef_left, last_divisions

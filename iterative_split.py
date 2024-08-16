@@ -115,7 +115,7 @@ def split_musicxml_by_page(file_path, output_dir='split_musicxml'):
                 temp_pdf_path_1 = temp_file_path_1.replace('.xml', '.pdf')
                 if os.path.exists(temp_pdf_path):
                     shutil.copy(temp_pdf_path, temp_pdf_path_1)
-                os.system(f"mscore3 {temp_file_path} -o {temp_pdf_path}")
+                os.system(f"musescore-portable-nightly {temp_file_path} -o {temp_pdf_path}")
 
                 # Check the PDF page count
                 if check_pdf_page_count(temp_pdf_path) <= 3:
@@ -166,7 +166,7 @@ def save_my_musicxml(part_id, page_number, current_measures, measure_index, best
     write_pretty_xml(temp_root, final_file_path)
 
     final_pdf_path = final_file_path.replace('.xml', '.pdf')
-    os.system(f"mscore3 {final_file_path} -o {final_pdf_path}")
+    os.system(f"musescore-portable-nightly {final_file_path} -o {final_pdf_path}")
 
     # Check the PDF page count
     if check_pdf_page_count(final_pdf_path) == 3 or (check_pdf_page_count(final_pdf_path) == 2 and (is_last)):
